@@ -215,9 +215,10 @@ interface ResponsivePopupProps {
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  position?: 'top' | 'bottom';
 }
 
-function ResponsivePopup({ isOpen, onClose, children, className }: ResponsivePopupProps) {
+function ResponsivePopup({ isOpen, onClose, children, className, position = 'bottom' }: ResponsivePopupProps) {
     if (!isOpen) return null;
 
     return (
@@ -237,11 +238,20 @@ function ResponsivePopup({ isOpen, onClose, children, className }: ResponsivePop
                 "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[360px] rounded-2xl p-5",
                 "md:p-4", // reset padding desktop
                 
-                // Desktop: Absolute Popover
-                "md:absolute md:left-0 md:top-full md:translate-x-0 md:translate-y-0 md:w-auto md:min-w-[320px] md:mt-2 md:rounded-xl",
+                // Desktop: Absolute Popover - reset mobile positioning
+                "md:absolute md:left-0 md:right-auto md:w-auto md:min-w-[320px] md:rounded-xl",
+                "md:translate-x-0 md:translate-y-0", // reset translate
+                
+                // Position: top or bottom
+                position === 'bottom' 
+                  ? "md:top-full md:bottom-auto md:mt-2" 
+                  : "md:bottom-full md:top-auto md:mb-2",
 
                 // Animations
-                "animate-in fade-in-0 zoom-in-95 duration-200 slide-in-from-bottom-4 md:slide-in-from-top-2",
+                "animate-in fade-in-0 zoom-in-95 duration-200",
+                position === 'bottom' 
+                  ? "slide-in-from-bottom-4 md:slide-in-from-top-2"
+                  : "slide-in-from-bottom-4 md:slide-in-from-bottom-2",
                 
                 className
             )}>
@@ -267,6 +277,7 @@ interface ThaiMonthPickerProps {
 function ThaiMonthPicker({ value, onChange }: ThaiMonthPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month'); 
+  const [popupPosition, setPopupPosition] = useState<'top' | 'bottom'>('bottom');
   const containerRef = useRef<HTMLDivElement>(null);
   
   const selectedDate = value ? dayjs(value) : dayjs();
@@ -305,11 +316,34 @@ function ThaiMonthPicker({ value, onChange }: ThaiMonthPickerProps) {
       setIsOpen(false);
   };
 
+  const calculatePosition = () => {
+    if (containerRef.current && window.innerWidth >= 768) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const popupHeight = 350; // ประมาณความสูงของ popup
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // ถ้าพื้นที่ด้านล่างไม่พอ และด้านบนมีพื้นที่มากกว่า -> เปิดด้านบน
+      if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+        setPopupPosition('top');
+      } else {
+        setPopupPosition('bottom');
+      }
+    }
+  };
+
+  const handleOpen = () => {
+    if (!isOpen) {
+      calculatePosition();
+    }
+    setIsOpen(!isOpen);
+  };
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpen}
         className={cn(
           "flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all",
         )}
@@ -322,7 +356,7 @@ function ThaiMonthPicker({ value, onChange }: ThaiMonthPickerProps) {
         </span>
       </button>
 
-      <ResponsivePopup isOpen={isOpen} onClose={() => setIsOpen(false)}>
+      <ResponsivePopup isOpen={isOpen} onClose={() => setIsOpen(false)} position={popupPosition}>
           {viewMode === 'year' ? (
               <YearView 
                 viewDate={viewDate} 
@@ -354,6 +388,7 @@ interface ThaiDatePickerProps {
 function ThaiDatePicker({ value, onChange, minDate, maxDate }: ThaiDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day'); 
+  const [popupPosition, setPopupPosition] = useState<'top' | 'bottom'>('bottom');
   const containerRef = useRef<HTMLDivElement>(null);
   
   const selectedDate = value ? dayjs(value) : null;
@@ -407,11 +442,33 @@ function ThaiDatePicker({ value, onChange, minDate, maxDate }: ThaiDatePickerPro
   const blanksArray = Array.from({ length: startDayOfWeek }, (_, i) => i);
   const weekDays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
+  const calculatePosition = () => {
+    if (containerRef.current && window.innerWidth >= 768) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const popupHeight = 400; // ประมาณความสูงของ popup (day view สูงกว่า)
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+        setPopupPosition('top');
+      } else {
+        setPopupPosition('bottom');
+      }
+    }
+  };
+
+  const handleOpen = () => {
+    if (!isOpen) {
+      calculatePosition();
+    }
+    setIsOpen(!isOpen);
+  };
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpen}
         className={cn(
           "w-full px-4 py-3 text-left border rounded-xl flex items-center justify-between transition-all duration-200 h-12",
           "bg-white border-slate-200",
@@ -425,7 +482,7 @@ function ThaiDatePicker({ value, onChange, minDate, maxDate }: ThaiDatePickerPro
         <CalendarIcon className="h-5 w-5 text-violet-500 opacity-70 flex-shrink-0" />
       </button>
 
-      <ResponsivePopup isOpen={isOpen} onClose={() => setIsOpen(false)}>
+      <ResponsivePopup isOpen={isOpen} onClose={() => setIsOpen(false)} position={popupPosition}>
           
           {/* 1. Year View */}
           {viewMode === 'year' && (
